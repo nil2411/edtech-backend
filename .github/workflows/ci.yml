@@ -65,4 +65,6 @@ jobs:
             sudo docker pull nil2411/edtech-backend:latest
             sudo docker stop backend || true
             sudo docker rm backend || true
+            sudo docker system prune -f
             sudo docker run -d -p 5000:5000 --name backend nil2411/edtech-backend:latest
+
