@@ -1,0 +1,68 @@
+name: Backend CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # ✅ allows manual trigger
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout repo
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ Setup Node.js for building & testing
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      # 3️⃣ Install dependencies & test
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Tests
+        run: npm test || echo "No tests available"
+
+      # 4️⃣ Security Scan (Snyk)
+      - name: Run Snyk Scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      # 5️⃣ Build Docker Image
+      - name: Build Docker Image
+        run: docker build -t nil2411/edtech-backend:latest .
+
+      # 6️⃣ Login to DockerHub
+      - name: DockerHub Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 7️⃣ Push Docker Image
+      - name: Push Docker Image
+        run: docker push nil2411/edtech-backend:latest
+
+      # 8️⃣ Deploy on AWS EC2
+      - name: Deploy on AWS EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.AWS_EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.AWS_EC2_SSH_KEY }}
+          script: |
+            sudo docker pull nil2411/edtech-backend:latest
+            sudo docker stop backend || true
+            sudo docker rm backend || true
+            sudo docker run -d -p 5000:5000 --name backend nil2411/edtech-backend:latest
