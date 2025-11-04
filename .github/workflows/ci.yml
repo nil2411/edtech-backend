@@ -62,9 +62,14 @@ jobs:
           username: ubuntu
           key: ${{ secrets.AWS_EC2_SSH_KEY }}
           script: |
-            sudo docker pull nil2411/edtech-backend:latest
+            echo "🧹 Cleaning old containers and freeing port 5000"
             sudo docker stop backend || true
             sudo docker rm backend || true
-            sudo docker system prune -f
+            sudo docker system prune -af || true
+            sudo fuser -k 5000/tcp || true
+            sudo systemctl restart docker || true
+
+            echo "🚀 Pulling latest image and redeploying"
+            sudo docker pull nil2411/edtech-backend:latest
             sudo docker run -d -p 5000:5000 --name backend nil2411/edtech-backend:latest
 
